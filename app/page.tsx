@@ -126,7 +126,7 @@ export default function Home() {
               className="text-4xl sm:text-6xl md:text-[clamp(3rem,8vw,6rem)] font-black text-white uppercase tracking-tighter leading-[0.9] mb-6"
             >
               EL PODCAST<br />
-              <span className="text-orange-500">DE LOS BERRACOS</span>
+              <span className="text-orange-500">DE LOS BERRAC@S</span>
             </motion.h1>
 
             {/* Subtitle */}
@@ -179,7 +179,7 @@ export default function Home() {
               </p>
 
               <a
-                href="https://discord.gg/berracast"
+                href="https://chat.whatsapp.com/KE647YoWM4m7KKgr28bmYL"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative inline-flex items-center gap-3 bg-orange-600 hover:bg-orange-500 text-black font-black text-xs sm:text-sm uppercase tracking-[0.15em] px-8 py-4 border-2 border-orange-400 transition-all duration-150 active:translate-y-0.5 cursor-pointer"

@@ -48,7 +48,7 @@ export function WebGLShader() {
       }
     `;
 
-    // Fragment shader — horizontal radio waveform (Berracast)
+    // Fragment shader — audio waveform bars (Berracast)
     const fragmentShader = `
       precision highp float;
       uniform vec2 resolution;
@@ -57,64 +57,72 @@ export function WebGLShader() {
       uniform float yScale;
       uniform float distortion;
 
+      // Pseudo-random hash
+      float hash(float n) {
+        return fract(sin(n) * 43758.5453123);
+      }
+
       void main() {
+        vec2 uv = gl_FragCoord.xy / resolution;
         vec2 p = (gl_FragCoord.xy * 2.0 - resolution) / min(resolution.x, resolution.y);
         
-        float d = length(p) * distortion;
+        // Number of bars across the screen
+        float barCount = 80.0;
+        float barWidth = 2.0 / barCount;
         
-        // Radio waveform: multiple overlapping frequencies
-        // like a real radio signal with harmonics
-        float rx = p.x * (1.0 + d);
-        float gx = p.x;
-        float bx = p.x * (1.0 - d);
-
-        // Main carrier wave + harmonic overtones for radio look
-        float wave_r = sin((rx + time) * xScale)
-                     + 0.5 * sin((rx + time) * xScale * 2.1 + 0.8)
-                     + 0.25 * sin((rx + time) * xScale * 4.3 + 1.6)
-                     + 0.15 * sin((rx + time) * xScale * 7.0 + 2.4)
-                     + 0.1 * sin((rx + time) * xScale * 11.0 + 3.2);
+        // Which bar column is this pixel in
+        float barIndex = floor((p.x + 1.0) / barWidth);
+        float barCenter = (barIndex + 0.5) * barWidth - 1.0;
         
-        float wave_g = sin((gx + time) * xScale)
-                     + 0.5 * sin((gx + time) * xScale * 2.1 + 0.8)
-                     + 0.25 * sin((gx + time) * xScale * 4.3 + 1.6)
-                     + 0.15 * sin((gx + time) * xScale * 7.0 + 2.4)
-                     + 0.1 * sin((gx + time) * xScale * 11.0 + 3.2);
+        // Distance from bar center (for bar thickness)
+        float distFromCenter = abs(p.x - barCenter);
+        float barThickness = barWidth * 0.3;
         
-        float wave_b = sin((bx + time) * xScale)
-                     + 0.5 * sin((bx + time) * xScale * 2.1 + 0.8)
-                     + 0.25 * sin((bx + time) * xScale * 4.3 + 1.6)
-                     + 0.15 * sin((bx + time) * xScale * 7.0 + 2.4)
-                     + 0.1 * sin((bx + time) * xScale * 11.0 + 3.2);
+        // Is this pixel inside a bar column?
+        float inBar = step(distFromCenter, barThickness);
         
-        // Normalize amplitude (sum of coefficients: 1+0.5+0.25+0.15+0.1 = 2.0)
-        wave_r *= yScale / 2.0;
-        wave_g *= yScale / 2.0;
-        wave_b *= yScale / 2.0;
+        // Compute bar height using layered sine waves (radio waveform envelope)
+        float t = time * 0.8;
+        float bx = barCenter * xScale;
         
-        // Glow lines around the waveform
-        float r = 0.04 / abs(p.y + wave_r);
-        float g = 0.04 / abs(p.y + wave_g);
-        float b = 0.04 / abs(p.y + wave_b);
+        float barHeight = 0.0;
+        barHeight += sin(bx * 2.0 + t) * 0.35;
+        barHeight += sin(bx * 3.7 + t * 1.3) * 0.25;
+        barHeight += sin(bx * 5.3 + t * 0.7 + 1.0) * 0.18;
+        barHeight += sin(bx * 8.1 + t * 1.8 + 2.0) * 0.12;
+        barHeight += sin(bx * 13.0 + t * 0.5 + 3.5) * 0.08;
+        // Add some randomness per bar for organic feel
+        barHeight += hash(barIndex * 0.137) * 0.08 - 0.04;
         
-        // Remap channels: push green toward yellow (r+g, no blue)
-        vec3 glow = vec3(
-          max(r, g * 0.8),   // red always strong
-          g * 0.75 + r * 0.2, // green tinted warm
-          b * 0.05            // blue nearly killed
-        );
+        barHeight = abs(barHeight) * yScale * 1.8;
         
-        // Intensity for white-hot blend
-        float intensity = (r + g + b) / 3.0;
+        // Symmetric: bar extends from -barHeight to +barHeight
+        float inHeight = step(abs(p.y), barHeight);
         
-        // Yellow-orange base
-        vec3 amber = vec3(1.0, 0.7, 0.0);
-        // White-hot core
-        vec3 white = vec3(1.0, 0.97, 0.85);
+        // Combine bar mask
+        float mask = inBar * inHeight;
         
-        // Blend: bright areas → white, dim areas → amber/yellow
-        float blend = smoothstep(0.3, 1.8, intensity);
-        vec3 color = mix(amber * glow, white * intensity, blend);
+        // Soft glow around bars (stronger)
+        float glowDist = abs(abs(p.y) - barHeight);
+        float glow = inBar * 0.03 / (glowDist + 0.01) * step(abs(p.y), barHeight + 0.15);
+        
+        // Wide ambient glow (background radiation)
+        float ambientGlow = 0.008 / (glowDist + 0.06);
+        
+        // Edge brightness: bars brighter at tips
+        float tipGlow = smoothstep(barHeight - 0.06, barHeight, abs(p.y)) * inHeight;
+        
+        // Intensity — much brighter
+        float intensity = mask * 1.2 + tipGlow * 0.6 + glow * 0.5 + ambientGlow * 0.15;
+        
+        // Vibrant orange
+        vec3 orange = vec3(1.0, 0.5, 0.0);
+        // White-hot for peaks
+        vec3 white = vec3(1.0, 0.95, 0.8);
+        
+        // Blend: peaks → white-hot, body → bright orange
+        float blend = smoothstep(0.5, 1.3, intensity);
+        vec3 color = mix(orange * intensity * 1.5, white * intensity, blend);
         
         gl_FragColor = vec4(color, 1.0);
       }
