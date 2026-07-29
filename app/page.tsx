@@ -204,7 +204,7 @@ export default function Home() {
                           alt={alt}
                           width={36}
                           height={36}
-                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "grayscale(100%)" }}
                         />
                       </div>
                     ))}
