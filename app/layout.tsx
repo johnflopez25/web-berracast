@@ -81,6 +81,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <meta name="theme-color" content="#050505" />
+        <meta name="facebook-domain-verification" content="d1yqmwv9vyqt6hx3a7ihplq4s0yl47" />
       </head>
       <body
         className={`${inter.variable} ${raleway.variable} antialiased bg-brand-black text-text-primary overflow-x-hidden`}
